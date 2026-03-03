@@ -43,10 +43,36 @@ const submitAccessRequest = async (req, res) => {
       return res.status(400).json({ message: "Valid Until cannot be in the past" });
     }
 
-    // Prevent duplicate requests
-    const existing = await AccessRequest.findOne({ idNumber });
+    // Prevent duplicate active requests, but allow re-applying if expired or rejected
+    let existing = await AccessRequest.findOne({ idNumber });
+
     if (existing) {
-      return res.status(409).json({ message: "Request already exists with this ID number" });
+      const isExpired = existing.validUntil && new Date(existing.validUntil) < now;
+      const isRejected = existing.status === "REJECTED";
+
+      if (!isExpired && !isRejected) {
+        return res.status(409).json({ message: "An active or pending request already exists with this ID number" });
+      }
+
+      // If expired or rejected, update the existing request to PENDING with new details
+      existing.fullName = fullName;
+      existing.organisation = organisation;
+      existing.validFrom = fromDate;
+      existing.validUntil = untilDate;
+      existing.status = "PENDING";
+      existing.rejectionReason = null;
+      if (req.user?.uid) existing.firebaseUid = req.user.uid;
+      if (req.user?.email) existing.firebaseEmail = req.user.email;
+
+      await existing.save();
+
+      // Delete old QR passes associated with this request
+      await QRPass.deleteMany({ requestId: existing._id });
+
+      return res.status(201).json({
+        message: "✅ Access request renewed successfully",
+        request: existing,
+      });
     }
 
     // ✅ Create request with stored validity window
