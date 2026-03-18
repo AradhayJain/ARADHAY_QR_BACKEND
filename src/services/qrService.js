@@ -26,7 +26,7 @@ const generateQRToken = (request, passType) => {
   const payload = {
     tId: tokenId,
     rId: request.id,
-    idn: request.idNumber,
+    // idn: request.idNumber,
     pTy: passType === "IN" ? 1 : 0,
     vF: request.validFrom ? Math.floor(new Date(request.validFrom).getTime() / 1000) : null,
     vU: Math.floor(expiryDate.getTime() / 1000),
