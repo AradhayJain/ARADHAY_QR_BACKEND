@@ -31,7 +31,13 @@ const verifyQR = async (req, res) => {
       });
     }
 
-    const { tokenId, requestId, passType, validFrom, validUntil } = decoded;
+    // Map minified keys back to original variables (with fallback for legacy tokens)
+    const { tId, rId, pTy, vF, vU } = decoded;
+    const tokenId = tId || decoded.tokenId;
+    const requestId = rId || decoded.requestId;
+    const passType = pTy !== undefined ? (pTy === 1 ? "IN" : "OUT") : decoded.passType;
+    const validFrom = vF ? new Date(vF * 1000) : decoded.validFrom;
+    const validUntil = vU ? new Date(vU * 1000) : decoded.validUntil;
 
     if (!tokenId || !requestId || !passType) {
       return res.json({
