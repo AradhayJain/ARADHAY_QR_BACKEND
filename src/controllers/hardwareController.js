@@ -34,7 +34,12 @@ const validateHardwareQR = async (req, res) => {
             });
         }
 
-        const { tokenId, passType, requestId, validUntil } = decoded;
+        // Map minified keys back to original variables (with fallback for legacy tokens)
+        const { tId, rId, pTy, vU } = decoded;
+        const tokenId = tId || decoded.tokenId;
+        const requestId = rId || decoded.requestId;
+        const passType = pTy !== undefined ? (pTy === 1 ? "IN" : "OUT") : decoded.passType;
+        const validUntil = vU ? new Date(vU * 1000) : decoded.validUntil;
 
         // ✅ Expiry Check
         if (new Date() > new Date(validUntil)) {
@@ -56,7 +61,7 @@ const validateHardwareQR = async (req, res) => {
         }
 
         // ✅ Get User
-        const user = await AccessRequest.findByPk(requestId);
+        const user = await AccessRequest.findById(requestId);
         if (!user) {
             return res.status(401).json({
                 access: false,
