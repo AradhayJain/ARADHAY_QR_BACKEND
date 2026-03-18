@@ -5,8 +5,8 @@ const crypto = require("crypto");
  * ✅ UNIVERSAL FIX: Hard-binds JWT Expiry to Database validUntil
  */
 const generateQRToken = (request, passType) => {
-  // Use a shorter 16-character hex string instead of 36-character UUID
-  const tokenId = crypto.randomBytes(8).toString("hex");
+  // Use a tiny 8-character base64url string instead of 16-character hex
+  const tokenId = crypto.randomBytes(6).toString("base64url");
 
   if (!request.validUntil) {
     throw new Error("CRITICAL: Cannot generate QR without validUntil timestamp.");
