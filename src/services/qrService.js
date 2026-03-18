@@ -1,11 +1,12 @@
 const jwt = require("jsonwebtoken");
-const { v4: uuidv4 } = require("uuid");
+const crypto = require("crypto");
 
 /**
  * ✅ UNIVERSAL FIX: Hard-binds JWT Expiry to Database validUntil
  */
 const generateQRToken = (request, passType) => {
-  const tokenId = uuidv4();
+  // Use a shorter 16-character hex string instead of 36-character UUID
+  const tokenId = crypto.randomBytes(8).toString("hex");
 
   if (!request.validUntil) {
     throw new Error("CRITICAL: Cannot generate QR without validUntil timestamp.");
@@ -13,7 +14,7 @@ const generateQRToken = (request, passType) => {
 
   const expiryDate = new Date(request.validUntil);
   const now = new Date();
-  
+
   // Calculate exact seconds from right now until the user-selected end time
   const secondsRemaining = Math.floor((expiryDate.getTime() - now.getTime()) / 1000);
 
@@ -21,19 +22,19 @@ const generateQRToken = (request, passType) => {
   // This prevents the 'expiresIn' from being negative or null
   const expiresInSeconds = secondsRemaining > 0 ? secondsRemaining : 1;
 
+  // Use minified keys and epoch timestamps to significantly reduce token size
   const payload = {
-    tokenId,
-    requestId: request.id,
-    idNumber: request.idNumber,
-    passType,
-    // Embed the window in the payload for hardware verification
-    validFrom: request.validFrom,
-    validUntil: request.validUntil,
+    tId: tokenId,
+    rId: request.id,
+    idn: request.idNumber,
+    pTy: passType === "IN" ? 1 : 0,
+    vF: request.validFrom ? Math.floor(new Date(request.validFrom).getTime() / 1000) : null,
+    vU: Math.floor(expiryDate.getTime() / 1000),
   };
 
   // ✅ FORCED TTL: This overrides any global defaults
   const token = jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: expiresInSeconds, 
+    expiresIn: expiresInSeconds,
   });
 
   return { tokenId, token };
