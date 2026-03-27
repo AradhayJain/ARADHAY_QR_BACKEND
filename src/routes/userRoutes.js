@@ -8,6 +8,8 @@ const {
   getActiveQR,
   getMyProfile,
   updateMyProfile,
+  checkUserProfile,
+  setupUserProfile,
 } = require("../controllers/userController");
 
 const firebaseAuth = require("../middleware/firebaseAuth");
@@ -41,5 +43,14 @@ router.get("/profile/:idNumber", firebaseAuth, getMyProfile);
  * ✅ Update user's own profile
  */
 router.put("/profile/:idNumber", firebaseAuth, updateMyProfile);
+/**
+ * ✅ Check user profile (during login)
+ */
+router.get("/check-profile", firebaseAuth, checkUserProfile);
+
+/**
+ * ✅ Setup user profile (after google login)
+ */
+router.post("/profile-setup", firebaseAuth, setupUserProfile);
 
 module.exports = router;

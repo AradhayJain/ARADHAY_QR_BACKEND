@@ -1,5 +1,6 @@
 const AccessRequest = require("../models/AccessRequest");
 const QRPass = require("../models/QRPass");
+const User = require("../models/User");
 const { getContributionCalendar } = require("../services/activityService");
 const { getActiveQRType, checkRestriction } = require("../services/qrRotationService");
 
@@ -107,14 +108,17 @@ const submitAccessRequest = async (req, res) => {
 const getUserQRByIdNumber = async (req, res) => {
   try {
     const { idNumber } = req.params;
+    console.log(`[DEBUG] Fetching QR for ID: ${idNumber}`);
 
     if (!req.user || !req.user.uid) {
+      console.log(`[DEBUG] No req.user or missing uid`);
       return res.status(401).json({ message: "Authentication required" });
     }
 
     const request = await AccessRequest.findOne({ idNumber });
 
     if (!request) {
+      console.log(`[DEBUG] No AccessRequest found for idNumber: ${idNumber}`);
       return res.status(404).json({ message: "No request found for this ID number" });
     }
 
@@ -127,6 +131,7 @@ const getUserQRByIdNumber = async (req, res) => {
 
     // ✅ Check if Firebase UID matches
     if (request.firebaseUid !== req.user.uid) {
+      console.log(`[DEBUG] UID Mismatch! request.firebaseUid=${request.firebaseUid}, req.user.uid=${req.user.uid}`);
       return res.status(403).json({ message: "This ID is registered to another account" });
     }
 
@@ -282,31 +287,35 @@ const getMyProfile = async (req, res) => {
       return res.status(401).json({ message: "Authentication required" });
     }
 
-    const request = await AccessRequest.findOne({ idNumber });
+    const userProfile = await User.findOne({ rollNo: idNumber });
 
-    if (!request) {
+    if (!userProfile) {
       return res.status(404).json({ message: "Profile not found" });
     }
 
-    if (request.firebaseUid !== req.user.uid) {
+    if (userProfile.firebaseUid !== req.user.uid) {
       return res.status(403).json({ message: "Unauthorized access" });
     }
 
+    // Fetch the latest access request to attach validity status
+    const request = await AccessRequest.findOne({ idNumber }).sort({ createdAt: -1 });
+
     return res.json({
       profile: {
-        id: request._id,
-        fullName: request.fullName,
-        idNumber: request.idNumber,
-        organisation: request.organisation,
-        profilePicture: request.profilePicture,
-        phoneNumber: request.phoneNumber,
-        email: request.email,
-        department: request.department,
-        year: request.year,
-        bio: request.bio,
-        status: request.status,
-        validFrom: request.validFrom,
-        validUntil: request.validUntil,
+        id: userProfile._id,
+        fullName: userProfile.fullName,
+        idNumber: userProfile.rollNo,
+        organisation: userProfile.organisation,
+        department: userProfile.designation,
+        email: userProfile.firebaseEmail,
+        profilePicture: userProfile.profilePicture,
+        phoneNumber: userProfile.phoneNumber,
+        year: userProfile.year,
+        bio: userProfile.bio,
+        status: request ? request.status : "NONE",
+        validFrom: request ? request.validFrom : null,
+        validUntil: request ? request.validUntil : null,
+        currentState: request ? request.currentState : "OUTSIDE",
       },
     });
   } catch (err) {
@@ -321,49 +330,126 @@ const getMyProfile = async (req, res) => {
 const updateMyProfile = async (req, res) => {
   try {
     const { idNumber } = req.params;
-    const { profilePicture, phoneNumber, email, department, year, bio } = req.body;
+    const { department, organisation, fullName, profilePicture, phoneNumber, email, year, bio } = req.body;
 
     if (!req.user || !req.user.uid) {
       return res.status(401).json({ message: "Authentication required" });
     }
 
-    const request = await AccessRequest.findOne({ idNumber });
+    const userProfile = await User.findOne({ rollNo: idNumber });
 
-    if (!request) {
+    if (!userProfile) {
       return res.status(404).json({ message: "Profile not found" });
     }
 
-    if (request.firebaseUid !== req.user.uid) {
+    if (userProfile.firebaseUid !== req.user.uid) {
       return res.status(403).json({ message: "Unauthorized access" });
     }
 
-    // Update only allowed fields
-    if (profilePicture !== undefined) request.profilePicture = profilePicture;
-    if (phoneNumber !== undefined) request.phoneNumber = phoneNumber;
-    if (email !== undefined) request.email = email;
-    if (department !== undefined) request.department = department;
-    if (year !== undefined) request.year = year;
-    if (bio !== undefined) request.bio = bio;
+    // Update allowed fields
+    if (department !== undefined) userProfile.designation = department;
+    if (organisation !== undefined) userProfile.organisation = organisation;
+    if (fullName !== undefined) userProfile.fullName = fullName;
+    if (profilePicture !== undefined) userProfile.profilePicture = profilePicture;
+    if (phoneNumber !== undefined) userProfile.phoneNumber = phoneNumber;
+    if (email !== undefined) userProfile.firebaseEmail = email;
+    if (year !== undefined) userProfile.year = year;
+    if (bio !== undefined) userProfile.bio = bio;
 
-    await request.save();
+    await userProfile.save();
 
     return res.json({
       message: "Profile updated successfully",
       profile: {
-        id: request._id,
-        fullName: request.fullName,
-        idNumber: request.idNumber,
-        organisation: request.organisation,
-        profilePicture: request.profilePicture,
-        phoneNumber: request.phoneNumber,
-        email: request.email,
-        department: request.department,
-        year: request.year,
-        bio: request.bio,
+        id: userProfile._id,
+        fullName: userProfile.fullName,
+        idNumber: userProfile.rollNo,
+        organisation: userProfile.organisation,
+        department: userProfile.designation,
+        email: userProfile.firebaseEmail,
       },
     });
   } catch (err) {
     console.error("Profile update error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * ✅ Check if user profile exists
+ */
+const checkUserProfile = async (req, res) => {
+  try {
+    if (!req.user || (!req.user.email && !req.user.uid)) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    const query = [];
+    if (req.user.email) query.push({ firebaseEmail: req.user.email });
+    if (req.user.uid) query.push({ firebaseUid: req.user.uid });
+
+    const existing = await User.findOne({ $or: query }).sort({ createdAt: -1 });
+
+    if (existing) {
+      return res.json({
+        exists: true,
+        data: {
+          fullName: existing.fullName,
+          rollNo: existing.rollNo,
+          organisation: existing.organisation,
+          designation: existing.designation
+        }
+      });
+    }
+
+    return res.json({ exists: false });
+  } catch (err) {
+    console.error("Check profile error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * ✅ Setup / Update User Profile
+ */
+const setupUserProfile = async (req, res) => {
+  try {
+    if (!req.user || (!req.user.email && !req.user.uid)) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    const { fullName, organisation, designation, rollNo } = req.body;
+
+    if (!fullName || !organisation || !designation || !rollNo) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const query = [];
+    if (req.user.email) query.push({ firebaseEmail: req.user.email });
+    if (req.user.uid) query.push({ firebaseUid: req.user.uid });
+
+    let user = await User.findOne({ $or: query });
+
+    if (user) {
+      user.fullName = fullName;
+      user.organisation = organisation;
+      user.designation = designation;
+      user.rollNo = rollNo;
+      await user.save();
+    } else {
+      user = await User.create({
+        firebaseUid: req.user.uid,
+        firebaseEmail: req.user.email,
+        fullName,
+        organisation,
+        designation,
+        rollNo,
+      });
+    }
+
+    return res.status(200).json({ message: "Profile saved successfully", user });
+  } catch (err) {
+    console.error("Setup profile error:", err.message);
     return res.status(500).json({ error: err.message });
   }
 };
@@ -375,4 +461,6 @@ module.exports = {
   getActiveQR,
   getMyProfile,
   updateMyProfile,
+  checkUserProfile,
+  setupUserProfile,
 };
