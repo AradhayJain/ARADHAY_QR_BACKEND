@@ -6,6 +6,23 @@ const UserActivity = require("../models/UserActivity");
 const { generateQRToken } = require("../services/qrService");
 const { generateQRImage } = require("../services/qrImageService");
 const { getContributionCalendar } = require("../services/activityService");
+const { addClient } = require("../services/notificationService");
+
+/**
+ * ✅ SSE Stream for Admin Notifications
+ */
+const streamNotifications = (req, res) => {
+  // Set headers for Server-Sent Events
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  // Add the client response object to the notification service manager
+  addClient(res);
+
+  // Send initial ping to keep connection alive
+  res.write("data: {\"type\":\"CONNECTED\", \"message\":\"Admin SSE connected\"}\n\n");
+};
 
 /**
  * ✅ View all pending requests
@@ -466,4 +483,5 @@ module.exports = {
   getUserContributionCalendar,
   getFlaggedActivities,
   getUserDailyLogs,
+  streamNotifications,
 };

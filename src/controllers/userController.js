@@ -3,6 +3,7 @@ const QRPass = require("../models/QRPass");
 const User = require("../models/User");
 const { getContributionCalendar } = require("../services/activityService");
 const { getActiveQRType, checkRestriction } = require("../services/qrRotationService");
+const { broadcast } = require("../services/notificationService");
 
 /**
  * ✅ User submits access request (Firebase Protected)
@@ -70,6 +71,13 @@ const submitAccessRequest = async (req, res) => {
       // Delete old QR passes associated with this request
       await QRPass.deleteMany({ requestId: existing._id });
 
+      // ✅ Broadcast to admins about the renewed request
+      broadcast({ 
+        type: 'NEW_REQUEST', 
+        user: existing.fullName, 
+        rollNo: existing.idNumber 
+      });
+
       return res.status(201).json({
         message: "✅ Access request renewed successfully",
         request: existing,
@@ -87,6 +95,13 @@ const submitAccessRequest = async (req, res) => {
       firebaseUid: req.user?.uid || null,
       firebaseEmail: req.user?.email || null,
       status: "PENDING"
+    });
+
+    // ✅ Broadcast to admins about the new request
+    broadcast({ 
+      type: 'NEW_REQUEST', 
+      user: request.fullName, 
+      rollNo: request.idNumber 
     });
 
     return res.status(201).json({
@@ -418,14 +433,20 @@ const setupUserProfile = async (req, res) => {
       return res.status(401).json({ message: "Authentication required" });
     }
 
-    const { fullName, organisation, designation, rollNo } = req.body;
+    const { fullName, organisation, designation, rollNo, email } = req.body;
 
     if (!fullName || !organisation || !designation || !rollNo) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
+    const firebaseEmail = req.user.email || email;
+
+    if (!firebaseEmail) {
+      return res.status(400).json({ message: "Firebase Email could not be resolved" });
+    }
+
     const query = [];
-    if (req.user.email) query.push({ firebaseEmail: req.user.email });
+    if (firebaseEmail) query.push({ firebaseEmail: firebaseEmail });
     if (req.user.uid) query.push({ firebaseUid: req.user.uid });
 
     let user = await User.findOne({ $or: query });
@@ -439,7 +460,7 @@ const setupUserProfile = async (req, res) => {
     } else {
       user = await User.create({
         firebaseUid: req.user.uid,
-        firebaseEmail: req.user.email,
+        firebaseEmail: firebaseEmail,
         fullName,
         organisation,
         designation,

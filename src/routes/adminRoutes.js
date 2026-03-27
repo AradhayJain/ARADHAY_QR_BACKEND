@@ -14,6 +14,7 @@ const {
   getUserContributionCalendar,
   getFlaggedActivities,
   getUserDailyLogs,
+  streamNotifications,
 } = require("../controllers/adminController");
 
 const { getAttendance } = require("../controllers/attendanceController");
@@ -27,6 +28,9 @@ const {
 // Requests
 router.get("/requests", getPendingRequests);
 router.get("/approved", getApprovedUsers);
+
+// Notifications Stream (SSE)
+router.get("/notifications/stream", streamNotifications);
 
 // Approval
 router.post("/approve/:id", approveRequest);
