@@ -319,16 +319,36 @@ const updateUserValidity = async (req, res) => {
 
 /**
  * ✅ Get user profile with contribution calendar (Admin Read-Only)
+ * Works with both MongoDB _id and roll numbers containing slashes (e.g. 23/SE/009)
  */
 const getUserProfile = async (req, res) => {
   try {
-    const { id } = req.params;
+    // With wildcard route "/user-profile/*", the captured segment is in req.params[0]
+    // With named route "/user-profile/:id", it's in req.params.id
+    const rawId = (req.params[0] || req.params.id || "").trim();
+    const id = decodeURIComponent(rawId);
 
-    const user = await AccessRequest.findById(id);
+    if (!id) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    // ✅ Dual lookup: try MongoDB _id first, then fall back to idNumber
+    let user = null;
+    const mongoose = require("mongoose");
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      user = await AccessRequest.findById(id);
+    }
+    if (!user) {
+      // Try by roll number (idNumber) — handles slashed roll numbers like "23/SE/009"
+      user = await AccessRequest.findOne({ idNumber: id });
+    }
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+
+    // Use the resolved MongoDB _id for all subsequent queries
+    const userId = user._id.toString();
 
     // Get last 90 days of activity
     const endDate = new Date().toISOString().split("T")[0];
@@ -336,10 +356,10 @@ const getUserProfile = async (req, res) => {
       .toISOString()
       .split("T")[0];
 
-    const calendar = await getContributionCalendar(id, startDate, endDate);
+    const calendar = await getContributionCalendar(userId, startDate, endDate);
 
     // Get recent scan logs
-    const recentLogs = await ScanLog.find({ requestId: id })
+    const recentLogs = await ScanLog.find({ requestId: userId })
       .sort({ createdAt: -1 })
       .limit(20);
 
@@ -350,6 +370,7 @@ const getUserProfile = async (req, res) => {
 
     return res.json({
       user: {
+        _id: user._id,
         id: user._id,
         fullName: user.fullName,
         idNumber: user.idNumber,
@@ -368,6 +389,7 @@ const getUserProfile = async (req, res) => {
         averageDuration: totalDays > 0 ? Math.round(totalDuration / totalDays) : 0,
       },
     });
+
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

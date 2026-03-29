@@ -52,9 +52,10 @@ router.get("/qrimage/:id/:type", getQRImage);
 router.get("/attendance", getAttendance);
 
 // ✅ USER PROFILE & ACTIVITY MONITORING
-router.get("/user-profile/:id", getUserProfile);
-router.get("/user-calendar/:id", getUserContributionCalendar);
-router.get("/user-daily-logs/:id", getUserDailyLogs);
+// Use wildcard (*) so roll numbers with slashes (e.g. 23/SE/009) are captured in full
+router.get("/user-profile/*", getUserProfile);
+router.get("/user-calendar/*", getUserContributionCalendar);
+router.get("/user-daily-logs/*", getUserDailyLogs);
 router.get("/flagged-activities", getFlaggedActivities);
 
 // ✅ SYSTEM SETTINGS (Admin Configuration)
