@@ -22,27 +22,24 @@ router.post("/request-access", submitAccessRequest);
 /**
  * ✅ Fetch BOTH IN + OUT QR using College ID Number (Protected)
  */
-router.get("/qrpass-by-id/:idNumber", firebaseAuth, getUserQRByIdNumber);
+// Use wildcard (*) so roll numbers with slashes (e.g. 23/SE/009) are captured in full
+router.get("/qrpass-by-id/*", firebaseAuth, getUserQRByIdNumber);
 
 /**
  * ✅ Get user's contribution calendar
  */
-router.get("/calendar/:idNumber", firebaseAuth, getMyContributionCalendar);
+router.get("/calendar/*", firebaseAuth, getMyContributionCalendar);
 
 /**
  * ✅ Get active QR (dynamic rotation)
  */
-router.get("/active-qr/:idNumber", firebaseAuth, getActiveQR);
+router.get("/active-qr/*", firebaseAuth, getActiveQR);
 
 /**
  * ✅ Get user's own profile
  */
-router.get("/profile/:idNumber", firebaseAuth, getMyProfile);
-
-/**
- * ✅ Update user's own profile
- */
-router.put("/profile/:idNumber", firebaseAuth, updateMyProfile);
+router.get("/profile/*", firebaseAuth, getMyProfile);
+router.put("/profile/*", firebaseAuth, updateMyProfile);
 /**
  * ✅ Check user profile (during login)
  */

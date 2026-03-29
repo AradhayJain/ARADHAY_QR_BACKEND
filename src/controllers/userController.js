@@ -122,7 +122,8 @@ const submitAccessRequest = async (req, res) => {
  */
 const getUserQRByIdNumber = async (req, res) => {
   try {
-    const { idNumber } = req.params;
+    // Wildcard route: extract the full roll number (may include slashes like 23/SE/009)
+    const idNumber = decodeURIComponent((req.params[0] || req.params.idNumber || "").trim());
     console.log(`[DEBUG] Fetching QR for ID: ${idNumber}`);
 
     if (!req.user || !req.user.uid) {
@@ -192,7 +193,8 @@ const getUserQRByIdNumber = async (req, res) => {
  */
 const getMyContributionCalendar = async (req, res) => {
   try {
-    const { idNumber } = req.params;
+    // Wildcard route: extract the full roll number (may include slashes like 23/SE/009)
+    const idNumber = decodeURIComponent((req.params[0] || req.params.idNumber || "").trim());
 
     if (!req.user || !req.user.uid) {
       return res.status(401).json({ message: "Authentication required" });
@@ -238,7 +240,8 @@ const getMyContributionCalendar = async (req, res) => {
  */
 const getActiveQR = async (req, res) => {
   try {
-    const { idNumber } = req.params;
+    // Wildcard route: extract the full roll number (may include slashes like 23/SE/009)
+    const idNumber = decodeURIComponent((req.params[0] || req.params.idNumber || "").trim());
 
     if (!req.user || !req.user.uid) {
       return res.status(401).json({ message: "Authentication required" });
@@ -296,7 +299,8 @@ const getActiveQR = async (req, res) => {
  */
 const getMyProfile = async (req, res) => {
   try {
-    const { idNumber } = req.params;
+    // Wildcard route: extract the full roll number (may include slashes like 23/SE/009)
+    const idNumber = decodeURIComponent((req.params[0] || req.params.idNumber || "").trim());
 
     if (!req.user || !req.user.uid) {
       return res.status(401).json({ message: "Authentication required" });
@@ -344,7 +348,8 @@ const getMyProfile = async (req, res) => {
  */
 const updateMyProfile = async (req, res) => {
   try {
-    const { idNumber } = req.params;
+    // Wildcard route: extract the full roll number (may include slashes like 23/SE/009)
+    const idNumber = decodeURIComponent((req.params[0] || req.params.idNumber || "").trim());
     const { department, organisation, fullName, profilePicture, phoneNumber, email, year, bio } = req.body;
 
     if (!req.user || !req.user.uid) {
