@@ -205,7 +205,7 @@ const getQRImage = async (req, res) => {
 const getApprovedUsers = async (req, res) => {
   try {
     console.log("📊 Fetching approved users...");
-    
+
     const approved = await AccessRequest.find({ status: "APPROVED" })
       .sort({ updatedAt: -1 });
 
@@ -236,14 +236,14 @@ const getUserScanLogs = async (req, res) => {
     return res.json({
       user: request
         ? {
-            id: request._id,
-            fullName: request.fullName,
-            idNumber: request.idNumber,
-            organisation: request.organisation,
-            validFrom: request.validFrom,
-            validUntil: request.validUntil,
-            status: request.status,
-          }
+          id: request._id,
+          fullName: request.fullName,
+          idNumber: request.idNumber,
+          organisation: request.organisation,
+          validFrom: request.validFrom,
+          validUntil: request.validUntil,
+          status: request.status,
+        }
         : null,
       logs,
     });
