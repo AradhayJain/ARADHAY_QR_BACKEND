@@ -52,10 +52,10 @@ router.get("/qrimage/:id/:type", getQRImage);
 router.get("/attendance", getAttendance);
 
 // ✅ USER PROFILE & ACTIVITY MONITORING
-// Use wildcard (*) so roll numbers with slashes (e.g. 23/SE/009) are captured in full
-router.get("/user-profile/*", getUserProfile);
-router.get("/user-calendar/*", getUserContributionCalendar);
-router.get("/user-daily-logs/*", getUserDailyLogs);
+// Frontend must use encodeURIComponent(id) so slashes in roll numbers (e.g. 23/SE/009) become %2F
+router.get("/user-profile/:id", getUserProfile);
+router.get("/user-calendar/:id", getUserContributionCalendar);
+router.get("/user-daily-logs/:id", getUserDailyLogs);
 router.get("/flagged-activities", getFlaggedActivities);
 
 // ✅ SYSTEM SETTINGS (Admin Configuration)
