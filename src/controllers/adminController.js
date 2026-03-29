@@ -65,7 +65,13 @@ const approveRequest = async (req, res) => {
     // ✅ UPDATE STATUS
     request.status = "APPROVED";
     request.rejectionReason = null;
-    request.currentState = "OUTSIDE";
+    // ✅ FIX: Preserve currentState on re-approvals (e.g. expired QR renewed).
+    // Only reset to OUTSIDE for brand-new first-time approvals where no state
+    // has been set yet. If a user is INSIDE when their pass expires and a new
+    // request is re-approved, we must keep them as INSIDE so the OUT QR is shown.
+    if (!request.currentState) {
+      request.currentState = "OUTSIDE";
+    }
     await request.save();
 
     // ✅ IMPORTANT: Clear old passes if regenerating
